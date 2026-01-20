@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinematic Prompt Builder by Yedp</title>
+    <link rel="icon" type="image/x-icon" href="favicon.png">
+    <style>
+        :root {
+            --bg-dark: #1e1e1e;
+            --bg-panel: #252526;
+            --bg-input: #333333;
+            --bg-hover: #3e3e42;
+            --text-main: #e0e0e0;
+            --text-muted: #858585;
+            --accent: #F5C518; /* Cinema Gold */
+            --accent-hover: #d4a017;
+            --border: #444444;
+            --radius: 6px;
+            --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: var(--font-ui);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Header --- */
+        header {
+            height: 50px;
+            background-color: #111;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        header .brand { display: flex; align-items: center; }
+        header .brand span { color: var(--accent); margin-right: 8px; }
+        header .version { font-size: 0.75rem; color: #555; background: #222; padding: 2px 6px; border-radius: 4px; }
+
+        /* --- Layout --- */
+        .app-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* --- Sidebar (Left) --- */
+        .sidebar {
+            width: 400px;
+            min-width: 350px;
+            background-color: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 30px; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 60px; 
+            position: relative;
+        }
+        
+        .control-group::after {
+            content: '';
+            position: absolute;
+            bottom: -30px;
+            left: 10%;
+            width: 80%;
+            height: 1px;
+            background: #333;
+        }
+        .control-group:last-child { margin-bottom: 0; }
+        .control-group:last-child::after { display: none; }
+
+        .label {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--accent); 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px; 
+        }
+
+        /* --- Inputs & Buttons --- */
+        input[type="text"], textarea.input-field {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px;
+            border-radius: var(--radius);
+            font-size: 0.95rem;
+            width: 100%;
+            font-family: var(--font-ui);
+        }
+        input[type="text"]:focus, textarea.input-field:focus {
+            border-color: var(--accent);
+            outline: none;
+        }
+        textarea.input-field {
+            resize: none;
+            min-height: 60px;
+        }
+
+        /* --- Mode Selector --- */
+        .mode-selector {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            background: #111;
+            padding: 4px;
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+        }
+        .mode-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: 0.2s;
+            text-align: center;
+        }
+        .mode-btn.active {
+            background: var(--bg-input);
+            color: var(--accent);
+        }
+
+        /* --- Aspect Ratio Grid --- */
+        .ratio-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        .ratio-btn {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 10px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+        .ratio-btn:hover { background: var(--bg-hover); }
+        .ratio-btn.active {
+            border-color: var(--accent);
+            background: rgba(245, 197, 24, 0.1);
+        }
+        .ratio-icon {
+            border: 2px solid var(--text-muted);
+            border-radius: 2px;
+            transition: 0.2s;
+        }
+        .ratio-btn.active .ratio-icon { border-color: var(--accent); }
+        .ratio-label { font-size: 0.75rem; color: var(--text-muted); }
+
+        /* --- Custom Dropdown --- */
+        .custom-select-wrapper {
+            position: relative;
+            user-select: none;
+        }
+        .custom-select-trigger {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95rem;
+        }
+        .custom-select-trigger:hover { background: var(--bg-hover); }
+        .custom-select-arrow {
+            width: 0; height: 0; 
+            border-left: 5px solid transparent; border-right: 5px solid transparent;
+            border-top: 6px solid var(--text-muted);
+            transition: 0.2s;
+        }
+        .custom-select-wrapper.open .custom-select-arrow { transform: rotate(180deg); border-top-color: var(--accent); }
+
+        .custom-options {
+            position: absolute;
+            top: 105%; left: 0; right: 0;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            z-index: 100;
+            opacity: 0; visibility: hidden;
+            pointer-events: none;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            max-height: 300px;
+            overflow-y: auto;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+        .custom-select-wrapper.open .custom-options { opacity: 1; visibility: visible; pointer-events: all; transform: translateY(0); }
+        .custom-option {
+            padding: 12px; cursor: pointer;
+            display: flex; flex-direction: column; gap: 4px;
+            border-bottom: 1px solid #444;
+        }
+        .custom-option:last-child { border-bottom: none; }
+        .custom-option:hover { background: var(--bg-hover); }
+        .custom-option.selected { background: rgba(245, 197, 24, 0.2); border-left: 3px solid var(--accent); }
+        .option-text h4 { margin: 0; font-size: 0.95rem; color: var(--text-main); }
+        .option-text p { margin: 0; font-size: 0.75rem; color: var(--text-muted); }
+
+        /* --- Range Slider --- */
+        .range-container { padding: 10px 0; display: flex; flex-direction: column; gap: 5px; }
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%;
+            background: var(--accent); cursor: pointer; margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: var(--border); border-radius: 2px; }
+        .range-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .range-value { font-size: 0.9rem; color: var(--accent); font-family: monospace; font-weight: bold; }
+        .slider-labels { display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.75rem; color: var(--text-muted); }
+
+        /* --- Multi-Select Grid --- */
+        .multi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+        .grid-card {
+            background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 8px; cursor: pointer; text-align: center; transition: 0.2s;
+            display: flex; align-items: center; justify-content: center; min-height: 40px;
+        }
+        .grid-card:hover { border-color: #666; }
+        .grid-card.active { border-color: var(--accent); background: rgba(245, 197, 24, 0.1); }
+        .grid-card-title { font-size: 0.8rem; }
+
+        /* --- Right Panel (Preview) --- */
+        .preview-panel {
+            flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 20px;
+            background: #111; overflow: hidden; /* Prevent scrollbar on panel from image resize logic */
+        }
+
+        .visual-preview-container {
+            flex: 1; /* Take available space */
+            width: 100%;
+            background: #0a0a0a; 
+            border: 1px solid var(--border); border-radius: var(--radius);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
+            background-image: radial-gradient(circle at 50% 50%, #222 1px, transparent 1px);
+            background-size: 20px 20px; padding: 20px;
+            min-height: 300px; /* Ensure minimum height */
+        }
+
+        .aspect-box {
+            background: #222; border: 1px solid #444; position: relative;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            overflow: hidden; 
+            transition: width 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), height 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        
+        .aspect-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        .preview-caption { color: var(--accent); font-size: 0.9rem; font-weight: 600; text-align: center; width: 100%; margin-top: 10px; }
+
+        /* Info Box */
+        .info-box {
+            background: rgba(245, 197, 24, 0.05); border-left: 4px solid var(--accent);
+            padding: 15px; border-radius: 4px; min-height: 80px; flex-shrink: 0;
+        }
+        .info-title { color: var(--accent); font-weight: bold; margin-bottom: 5px; display: block; font-size: 1rem;}
+        .info-text { font-size: 0.9rem; line-height: 1.5; color: #ccc; }
+
+        /* Output Areas */
+        .output-group { flex-shrink: 0; }
+        .output-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        textarea.output-box {
+            width: 100%; background: #1a1a1a; border: 1px solid var(--border);
+            color: #ddd; padding: 12px; border-radius: var(--radius);
+            font-family: monospace; resize: vertical; min-height: 80px; font-size: 0.9rem;
+        }
+        textarea.output-box:focus { border-color: var(--accent); outline: none; }
+        
+        .btn { padding: 6px 12px; border-radius: 4px; border: none; font-weight: 600; cursor: pointer; font-size: 0.8rem; transition: 0.2s; }
+        .btn-copy { background: #333; color: white; border: 1px solid #555; }
+        .btn-copy:hover { background: #444; }
+        .btn-primary { background: var(--accent); color: #111; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-action { background: #444; color: white; }
+
+        /* Action Bar */
+        .action-bar { display: flex; gap: 10px; margin-top: auto; border-top: 1px solid var(--border); padding-top: 20px; flex-shrink: 0; }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+
+        @media (max-width: 900px) {
+            .app-container { flex-direction: column; overflow-y: auto; }
+            .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+            body { overflow-y: auto; height: auto; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="brand">
+        <span>CINEMA</span> PROMPT BUILDER
+    </div>
+    <div class="version">v3.12 (Added Styles)</div>
+</header>
+
+<div class="app-container">
+    <aside class="sidebar" id="sidebar">
+        
+        <!-- Mode Switcher -->
+        <div class="label">Formatting Mode</div>
+        <div class="mode-selector">
+            <button class="mode-btn active" onclick="setMode('midjourney')">Midjourney</button>
+            <button class="mode-btn" onclick="setMode('stablediffusion')">Stable Diff.</button>
+            <button class="mode-btn" onclick="setMode('flux')">Flux</button>
+            <button class="mode-btn" onclick="setMode('nanobanana')">NanoBanana Pro</button>
+        </div>
+
+        <div class="control-group">
+            <div class="label">Primary Subject</div>
+            <input type="text" id="subjectInput" placeholder="A lone cyborg in a rainy alleyway..." value="A lone astronaut exploring a cave">
+        </div>
+
+        <div class="control-group">
+            <div class="label">Negative Prompt</div>
+            <textarea id="negativeInput" class="input-field" placeholder="blurry, distorted, low quality, duplicate..."></textarea>
+        </div>
+
+        <div id="controlsContainer"></div>
+    </aside>
+
+    <main class="preview-panel">
+        
+        <div class="label">Visual Reference Monitor</div>
+        <div class="visual-preview-container" id="previewContainer">
+            <div id="visualBox" class="aspect-box">
+                <img id="previewImage" src="" alt="Reference Preview" onerror="handleImageError(this)">
+            </div>
+            
+            <div id="visualCaption" class="preview-caption">Hover for references</div>
+        </div>
+
+        <div id="infoBox" class="info-box">
+            <span id="infoTitle" class="info-title">Welcome</span>
+            <span id="infoText" class="info-text">Select options on the left. The reference monitor scales proportionally to fit the container. Formatting mode adjusts the prompt syntax.</span>
+        </div>
+
+        <div class="output-group">
+            <div class="output-header">
+                <span class="label">Final Prompt String</span>
+                <button class="btn btn-copy" onclick="copyToClipboard('promptOutput')">Copy Text</button>
+            </div>
+            <textarea id="promptOutput" class="output-box" readonly></textarea>
+        </div>
+
+        <div class="output-group">
+            <div class="output-header">
+                <span class="label">Configuration JSON</span>
+                <button class="btn btn-copy" onclick="copyToClipboard('jsonOutput')">Copy JSON</button>
+            </div>
+            <textarea id="jsonOutput" class="output-box" readonly style="color: #aaddff;"></textarea>
+        </div>
+
+        <div class="action-bar">
+            <button class="btn btn-primary" onclick="randomize()">Inspiration</button>
+            <button class="btn btn-action" onclick="saveTemplate()">Save File</button>
+            <button class="btn btn-action" onclick="loadTemplate()">Load File</button>
+            <button class="btn btn-danger" onclick="resetAll()">Reset</button>
+        </div>
+    </main>
+</div>
+
+<script>
+    const ASSET_PATH = "assets/"; 
+    const ASSET_EXT = ".jpg";     
+
+    const categories = {
+        ratio: {
+            title: "Aspect Ratio",
+            type: "ratio",
+            options: [
+                { id: "16-9", label: "16:9", value: "--ar 16:9", desc: "Standard Widescreen. Ideal for TV and YouTube.", w: 16, h: 9 },
+                { id: "9-16", label: "9:16", value: "--ar 9:16", desc: "Vertical. Perfect for TikTok, Reels, and Mobile.", w: 9, h: 16 },
+                { id: "1-1", label: "1:1", value: "--ar 1:1", desc: "Square. Classic Instagram format.", w: 1, h: 1 },
+                { id: "4-3", label: "4:3", value: "--ar 4:3", desc: "Standard Definition. Retro TV look.", w: 4, h: 3 },
+                { id: "235-1", label: "2.35:1", value: "--ar 2.35:1", desc: "Anamorphic Widescreen. Classic CinemaScope look.", w: 2.35, h: 1 },
+                { id: "143-1", label: "1.43:1", value: "--ar 1.43:1", desc: "IMAX. Massive vertical scale.", w: 1.43, h: 1 }
+            ]
+        },
+        framing: {
+            title: "Framing / Shot Size",
+            type: "select",
+            options: [
+                { id: "ecu", label: "Extreme Close-Up", value: "extreme close-up", desc: "Focuses on a specific detail (e.g., an eye). Intensifies emotion." },
+                { id: "cu", label: "Close-Up", value: "close-up", desc: "Head and shoulders. Focuses on facial expression." },
+                { id: "med", label: "Medium Shot", value: "medium shot", desc: "Waist up. Standard interaction shot." },
+                { id: "cowboy", label: "Cowboy Shot", value: "American shot", desc: "Mid-thigh up. Originates from Westerns to show gun holsters." },
+                { id: "full", label: "Full Body", value: "full body shot", desc: "Head to toe. Shows attire and stance." },
+                { id: "wide", label: "Wide Shot", value: "wide shot", desc: "Subject + environment. Shows context." },
+                { id: "est", label: "Establishing Shot", value: "establishing shot", desc: "Very wide. Sets the scene and location." },
+                { id: "macro", label: "Macro", value: "macro photography", desc: "Microscopic detail. Insects, textures, eyes." },
+                { id: "tilt", label: "Tilt-Shift", value: "tilt-shift photography", desc: "Miniature effect with selective focus band. Makes large scenes look like models." },
+                { id: "split", label: "Split Diopter", value: "split diopter shot", desc: "Both foreground and background are sharp. Classic Brian De Palma technique." }
+            ]
+        },
+        angle: {
+            title: "Camera Angle",
+            type: "select",
+            options: [
+                { id: "eye", label: "Eye Level", value: "eye level angle", desc: "Neutral perspective. Connects directly with the subject." },
+                { id: "low", label: "Low Angle", value: "low angle shot", desc: "Looking up. Makes subject look powerful or dominant." },
+                { id: "high", label: "High Angle", value: "high angle shot", desc: "Looking down. Makes subject look vulnerable or small." },
+                { id: "worm", label: "Worm's Eye", value: "worm's eye view", desc: "From the floor looking up. Grandeur or strangeness." },
+                { id: "ground", label: "Ground Level", value: "ground level shot", desc: "Camera sits on the ground. Intimate texture." },
+                { id: "bird", label: "Bird's Eye / Overhead", value: "overhead bird's eye view", desc: "Directly overhead (90 degrees). Geometry and layout." },
+                { id: "ots", label: "Over-the-Shoulder", value: "over-the-shoulder shot", desc: "Behind one character looking at another. Dialogue." },
+                { id: "dutch", label: "Dutch Angle", value: "Dutch angle", desc: "Tilted horizon. Creates unease, tension, or disorientation." },
+                { id: "pov", label: "POV", value: "first-person POV", desc: "Seen through the eyes of a character." }
+            ]
+        },
+        camera: {
+            title: "Camera Model",
+            type: "select",
+            options: [
+                { id: "arri", label: "Arri Alexa LF", value: "shot on Arri Alexa LF", desc: "The industry standard for digital cinema. High dynamic range." },
+                { id: "imax70", label: "IMAX 70mm Film", value: "shot on IMAX 70mm Film", desc: "Unmatched resolution and depth. The Nolan look." },
+                { id: "panavision", label: "Panavision Millennium", value: "shot on Panavision Millennium DXL2", desc: "Warm skin tones and classic Hollywood aesthetics." },
+                { id: "sony", label: "Sony Venice 2", value: "shot on Sony Venice 2", desc: "Modern, sharp, incredible low light performance." },
+                { id: "iphone", label: "iPhone 15 Pro", value: "shot on iPhone 15 Pro", desc: "Digital, sharp, deep depth of field. Modern vlog style." },
+                { id: "polaroid", label: "Polaroid SX-70", value: "Polaroid SX-70 instant film", desc: "Soft, nostalgic, chemical borders and faded colors." },
+                { id: "gopro", label: "GoPro Hero", value: "shot on GoPro Hero", desc: "Wide, distorted fish-eye, action sports feel." }
+            ]
+        },
+        focal: {
+            title: "Focal Length",
+            type: "select",
+            options: [
+                { id: "14mm", label: "14mm (Ultra Wide)", value: "14mm lens", desc: "Distorted edges, vast scale. Action cam look." },
+                { id: "24mm", label: "24mm (Wide)", value: "24mm lens", desc: "Standard wide. Good for landscapes and interiors." },
+                { id: "35mm", label: "35mm (Classic)", value: "35mm lens", desc: "Closest to human field of view. Storytelling lens." },
+                { id: "50mm", label: "50mm (Standard)", value: "50mm lens", desc: "Nifty Fifty. Natural perspective, no distortion." },
+                { id: "85mm", label: "85mm (Portrait)", value: "85mm lens", desc: "Flattering for faces. Separates subject from background." },
+                { id: "135mm", label: "135mm (Telephoto)", value: "135mm lens", desc: "Significant compression. Ideal for distant subjects." },
+                { id: "200mm", label: "200mm (Super Tele)", value: "200mm lens", desc: "Compresses space. Background appears huge behind subject." }
+            ]
+        },
+        dof: {
+            title: "Aperture / Depth of Field",
+            type: "slider",
+            options: [
+                { id: "f12", val: "f/1.2", label: "f/1.2", desc: "Razor thin focus. Dreamy bokeh." },
+                { id: "f18", val: "f/1.8", label: "f/1.8", desc: "Very shallow. Great for low light." },
+                { id: "f28", val: "f/2.8", label: "f/2.8", desc: "Professional zoom lens standard. Good separation." },
+                { id: "f4", val: "f/4.0", label: "f/4.0", desc: "Balanced separation and clarity." },
+                { id: "f56", val: "f/5.6", label: "f/5.6", desc: "Standard sharpness." },
+                { id: "f8", val: "f/8.0", label: "f/8.0", desc: "Landscape standard. Mostly in focus." },
+                { id: "f11", val: "f/11", label: "f/11", desc: "Deep focus." },
+                { id: "f16", val: "f/16", label: "f/16", desc: "Everything sharp. Sunstars appear." },
+                { id: "f22", val: "f/22", label: "f/22", desc: "Maximum depth. Risk of diffraction softness." }
+            ]
+        },
+        lighting: {
+            title: "Lighting",
+            type: "select",
+            options: [
+                { id: "volumetric", label: "Volumetric / God Rays", value: "volumetric lighting", desc: "Light beams visible in air/fog. Epic atmosphere." },
+                { id: "biolum", label: "Bioluminescence", value: "bioluminescent lighting", desc: "Glowing organic light (blue/green). Avatar Pandora style." },
+                { id: "golden", label: "Golden Hour", value: "golden hour", desc: "Warm, soft light just before sunset." },
+                { id: "blue", label: "Blue Hour", value: "blue hour", desc: "Cold, melancholic twilight before sunrise." },
+                { id: "noon", label: "Noon Sun", value: "harsh noon sunlight", desc: "Short shadows, high contrast, bright." },
+                { id: "overcast", label: "Overcast", value: "overcast soft lighting", desc: "Diffused, shadowless, giant softbox effect." },
+                { id: "studio", label: "Studio Key Light", value: "studio key lighting", desc: "Controlled, professional artificial lighting." },
+                { id: "rembrandt", label: "Rembrandt", value: "Rembrandt lighting", desc: "Triangle of light on the cheek. Dramatic portraiture." },
+                { id: "candle", label: "Candlelight", value: "lit by candlelight", desc: "Warm, flickering, low light, intimate." },
+                { id: "moon", label: "Moonlight", value: "moonlight", desc: "Cold, silver/blue low light." },
+                { id: "sil", label: "Silhouette", value: "silhouette lighting", desc: "Subject is black against a bright background." },
+                { id: "neon", label: "Neon", value: "neon lighting", desc: "Vibrant pinks, cyans, and harsh artificial light." },
+                { id: "chiaroscuro", label: "Chiaroscuro", value: "chiaroscuro", desc: "High contrast between light and dark." }
+            ]
+        },
+        palette: {
+            title: "Color Palette",
+            type: "select",
+            options: [
+                { id: "tealorange", label: "Teal & Orange", value: "teal and orange color grading", desc: "Blockbuster standard. Cool shadows, warm skin tones." },
+                { id: "velvia", label: "Fujifilm Velvia", value: "Fujifilm Velvia 50", desc: "High saturation, deep blacks, vivid colors. Nature photography." },
+                { id: "ektachrome", label: "Kodak Ektachrome", value: "Kodak Ektachrome", desc: "Cooler tones, fine grain, distinct blues." },
+                { id: "techni", label: "Technicolor", value: "Technicolor process", desc: "Hyper-saturated red/green/blue. Old Hollywood Wizard of Oz look." },
+                { id: "bw", label: "Black & White", value: "black and white photography", desc: "Timeless, focuses on texture and light." },
+                { id: "kodak", label: "Kodak Portra 400", value: "Kodak Portra 400 film look", desc: "Natural skin tones, fine grain, warm highlights." },
+                { id: "vivid", label: "Vivid / Saturated", value: "vivid colors, high saturation", desc: "Punchy, bright, eye-catching." },
+                { id: "muted", label: "Muted / Desaturated", value: "muted tones, low saturation", desc: "Grim, serious, realistic." },
+                { id: "warm", label: "Warm Tones", value: "warm color palette", desc: "Cozy, nostalgic, safe." },
+                { id: "cool", label: "Cool Tones", value: "cool color palette", desc: "Clinical, detached, or sad." },
+                { id: "highcon", label: "High Contrast", value: "high contrast", desc: "Deep blacks and bright whites. Dramatic." },
+                { id: "mono", label: "Monochromatic", value: "monochromatic color scheme", desc: "Using shades of a single color." },
+                { id: "neonpal", label: "Neon Palette", value: "neon color palette", desc: "Electric greens, pinks, purples." },
+                { id: "sepia", label: "Sepia", value: "sepia tone", desc: "Old western, flashback, antique." }
+            ]
+        },
+        texture: {
+            title: "Texture & Post (Multi)",
+            type: "multi",
+            options: [
+                { id: "clean", label: "Clean Digital", value: "clean digital noise-free", desc: "Pristine digital clarity. No noise or artifacts." },
+                { id: "grain", label: "Film Grain", value: "heavy film grain", desc: "The organic texture of silver halide crystals on celluloid." },
+                { id: "burn", label: "Film Burn", value: "film burn artifacts", desc: "Light leaks and chemical distortions at the edge of the reel." },
+                { id: "vhs", label: "VHS", value: "VHS artifacts", desc: "Analog tracking errors and color bleeding of magnetic tape." },
+                { id: "bloom", label: "Bloom", value: "bloom effect", desc: "Light spreading from bright edges, creating a dreamy glow." },
+                { id: "chromatic", label: "Chromatic Aberration", value: "chromatic aberration", desc: "Color fringing at high-contrast edges caused by lens refraction." },
+                { id: "motion", label: "Motion Blur", value: "motion blur", desc: "Kinetic energy captured through a longer shutter speed." },
+                { id: "vignette", label: "Vignette", value: "vignette", desc: "Gradual darkening toward the corners to focus the eye." }
+            ]
+        },
+        style: {
+            title: "Art Style (Multi)",
+            type: "multi",
+            options: [
+                { id: "photo", label: "Photorealistic", value: "photorealistic, 8k", desc: "Mimicking real photography with physical accuracy." },
+                { id: "cine", label: "Cinematic", value: "cinematic composition", desc: "Mood and lighting typical of professional movie sets." },
+                { id: "3d", label: "3D Render", value: "Unreal Engine 5 render, 3D", desc: "The sharp, clean look of modern real-time computer graphics." },
+                { id: "clay", label: "Claymation", value: "claymation style, Aardman", desc: "The tactile, handcrafted feel of stop-motion clay characters." },
+                { id: "water", label: "Watercolor", value: "watercolor painting", desc: "Soft edges, bleeding colors, and organic paper texture." },
+                { id: "cyber", label: "Cyberpunk", value: "Cyberpunk aesthetic", desc: "High tech and low life; neon, rain, and urban futurism." },
+                { id: "steam", label: "Steampunk", value: "Steampunk aesthetic, brass and gears", desc: "Victorian industrial design powered by steam and clockwork." },
+                { id: "diner", label: "1950s Diner", value: "1950s diner aesthetic, retro americana", desc: "Chrome, neon, checkerboard floors, and classic Americana nostalgia." },
+                { id: "atom", label: "Atompunk", value: "atompunk aesthetic", desc: "The retro-futuristic vision of the 1950s: Googie architecture and nuclear optimism." },
+                { id: "vapor", label: "Vaporwave", value: "vaporwave aesthetic", desc: "Retro-futuristic 80s dreamscapes with pink and teal hues." },
+                { id: "goth", label: "Gothic", value: "Gothic aesthetic", desc: "Dark, ornate, and mysterious moods with historic architectural roots." },
+                { id: "min", label: "Minimalist", value: "minimalist style", desc: "Stripped down to the essential shapes, colors, and concepts." },
+                { id: "retro80", label: "Retro 80s", value: "1980s retro style", desc: "Saturated primary colors and the lo-fi glow of CRT screens." },
+                { id: "docu", label: "Gritty Documentary", value: "gritty documentary footage", desc: "Raw, unpolished, and handheld realism." },
+                { id: "ghibli", label: "Studio Ghibli", value: "Studio Ghibli style", desc: "Lush, hand-painted backgrounds and whimsical charm." },
+                { id: "oil", label: "Oil Painting", value: "oil painting texture", desc: "Thick brushstrokes and rich, layered pigments on canvas." },
+                { id: "noir", label: "Film Noir", value: "film noir style", desc: "High-contrast lighting and a cynical urban atmosphere." }
+            ]
+        },
+        artist: {
+            title: "Artist / Director",
+            type: "select",
+            options: [
+                { id: "wes", label: "Wes Anderson", value: "directed by Wes Anderson", desc: "Symmetry, pastel colors, and whimsical storybook staging." },
+                { id: "ridley", label: "Ridley Scott", value: "directed by Ridley Scott", desc: "Atmospheric scale, high detail, and moody sci-fi noir." },
+                { id: "nolan", label: "Christopher Nolan", value: "directed by Christopher Nolan", desc: "Grand scale, practical effects, and a cool, clinical color palette." },
+                { id: "hopper", label: "Edward Hopper", value: "art by Edward Hopper", desc: "Dramatic shadows, urban isolation, and cinematic stillness." },
+                { id: "fraser", label: "Greig Fraser", value: "cinematography by Greig Fraser", desc: "The Batman/Dune look: Moody, soft, and dark-focused digital." },
+                { id: "lubezki", label: "Emmanuel Lubezki", value: "cinematography by Emmanuel Lubezki", desc: "Master of natural light and immersive long-take cinematography." },
+                { id: "hoyte", label: "Hoyte van Hoytema", value: "cinematography by Hoyte van Hoytema", desc: "IMAX scale, tactile texture, and shallow depth of field." },
+                { id: "fincher", label: "David Fincher", value: "directed by David Fincher", desc: "Extreme precision, green/yellow tints, and low-light digital clarity." },
+                { id: "burton", label: "Tim Burton", value: "directed by Tim Burton", desc: "Gothic, quirky, and dark fantasy visuals with high contrast." },
+                { id: "spielberg", label: "Steven Spielberg", value: "directed by Steven Spielberg", desc: "Cinematic wonder, backlighting, and distinct, iconic silhouettes." },
+                { id: "denis", label: "Denis Villeneuve", value: "directed by Denis Villeneuve", desc: "Brutalist architecture, vast scale, and heavy atmosphere." },
+                { id: "wong", label: "Wong Kar-wai", value: "directed by Wong Kar-wai", desc: "Saturated neon, motion blur, and a feeling of urban longing." },
+                { id: "mead", label: "Syd Mead", value: "art by Syd Mead", desc: "Industrial futurism and functional high-tech design." },
+                { id: "miyazaki", label: "Hayao Miyazaki", value: "art by Hayao Miyazaki", desc: "Lush nature, intricate flying machines, and hand-painted detail." },
+                { id: "tarantino", label: "Quentin Tarantino", value: "directed by Quentin Tarantino", desc: "Low angles, vibrant colors, and 70s exploitation film style." },
+                { id: "giger", label: "H.R. Giger", value: "art by H.R. Giger", desc: "Biomechanical nightmarish textures and monochromatic darkness." }
+            ]
+        }
+    };
+
+    let state = {
+        mode: "midjourney",
+        ratio: "16-9",
+        camera: "arri",
+        framing: "wide",
+        angle: "eye",
+        focal: "50mm",
+        dof: 2, 
+        lighting: "volumetric",
+        palette: "tealorange",
+        texture: [],
+        style: ["photo", "cine"],
+        artist: "wes",
+        negative: ""
+    };
+
+    const controlsContainer = document.getElementById('controlsContainer');
+    const visualBox = document.getElementById('visualBox');
+    const previewImage = document.getElementById('previewImage');
+    const visualCaption = document.getElementById('visualCaption');
+    const infoTitle = document.getElementById('infoTitle');
+    const infoText = document.getElementById('infoText');
+    const promptOutput = document.getElementById('promptOutput');
+    const jsonOutput = document.getElementById('jsonOutput');
+    const subjectInput = document.getElementById('subjectInput');
+    const negativeInput = document.getElementById('negativeInput');
+    const previewContainer = document.getElementById('previewContainer'); // Added ID for ref
+
+    function init() {
+        renderControls();
+        updateUI();
+        setPreview(categories.camera, "arri");
+        subjectInput.addEventListener('input', updatePrompt);
+        negativeInput.addEventListener('input', () => { state.negative = negativeInput.value; updatePrompt(); });
+        
+        // Add resize listener to handle container changes
+        window.addEventListener('resize', updateUI);
+    }
+
+    function setMode(mode) {
+        state.mode = mode;
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.innerText.toLowerCase().replace(/ /g, '').replace(/\./, '') === mode.replace(/ /g, '').replace(/\./, ''));
+        });
+        const btns = document.querySelectorAll('.mode-btn');
+        btns[0].classList.toggle('active', mode === 'midjourney');
+        btns[1].classList.toggle('active', mode === 'stablediffusion');
+        btns[2].classList.toggle('active', mode === 'flux');
+        btns[3].classList.toggle('active', mode === 'nanobanana');
+        updatePrompt();
+    }
+
+    function setPreview(categoryObj, id) {
+        if(categoryObj.type === 'ratio') {
+             visualCaption.innerText = `Ratio: ${categoryObj.options.find(o=>o.id===id).label}`;
+             return;
+        }
+        const opt = categoryObj.options.find(o => o.id === id);
+        if(!opt) return;
+        const catKey = Object.keys(categories).find(key => categories[key] === categoryObj);
+        const fileName = `${catKey}_${id}${ASSET_EXT}`;
+        const filePath = ASSET_PATH + fileName;
+        previewImage.dataset.expectedName = fileName; 
+        previewImage.src = filePath;
+        previewImage.style.display = 'block';
+        visualCaption.innerText = `Preview: ${opt.label}`;
+        showInfo(opt.label, opt.desc);
+    }
+
+    function handleImageError(img) {
+        const expected = img.dataset.expectedName || "image";
+        img.src = `https://placehold.co/600x400/333/666?text=Missing:+${expected}`;
+    }
+
+    function renderControls() {
+        Object.keys(categories).forEach(key => {
+            const cat = categories[key];
+            const group = document.createElement('div');
+            group.className = 'control-group';
+            const label = document.createElement('div');
+            label.className = 'label';
+            label.innerText = cat.title;
+            group.appendChild(label);
+
+            if (cat.type === 'ratio') {
+                const grid = document.createElement('div');
+                grid.className = 'ratio-grid';
+                cat.options.forEach(opt => {
+                    const btn = document.createElement('div');
+                    btn.className = 'ratio-btn';
+                    btn.dataset.id = opt.id;
+                    btn.onclick = () => setRatio(opt.id);
+                    btn.onmouseenter = () => showInfo(opt.label, opt.desc);
+                    const icon = document.createElement('div');
+                    icon.className = 'ratio-icon';
+                    const scale = 25 / Math.max(opt.w, opt.h);
+                    icon.style.width = `${opt.w * scale}px`;
+                    icon.style.height = `${opt.h * scale}px`;
+                    const txt = document.createElement('span');
+                    txt.className = 'ratio-label';
+                    txt.innerText = opt.label;
+                    btn.appendChild(icon);
+                    btn.appendChild(txt);
+                    grid.appendChild(btn);
+                });
+                group.appendChild(grid);
+            } 
+            else if (cat.type === 'select') {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'custom-select-wrapper';
+                wrapper.id = `select-${key}`;
+                const trigger = document.createElement('div');
+                trigger.className = 'custom-select-trigger';
+                trigger.onclick = (e) => toggleSelect(key, e);
+                trigger.innerHTML = `<span id="txt-${key}">Select...</span> <div class="custom-select-arrow"></div>`;
+                const options = document.createElement('div');
+                options.className = 'custom-options';
+                cat.options.forEach(opt => {
+                    const option = document.createElement('div');
+                    option.className = 'custom-option';
+                    option.dataset.value = opt.id;
+                    option.onclick = () => {
+                        selectOption(key, opt.id);
+                        setPreview(cat, opt.id); 
+                    };
+                    option.onmouseenter = () => setPreview(cat, opt.id);
+                    option.innerHTML = `<div class="option-text"><h4>${opt.label}</h4><p>${opt.desc}</p></div>`;
+                    options.appendChild(option);
+                });
+                wrapper.appendChild(trigger);
+                wrapper.appendChild(options);
+                group.appendChild(wrapper);
+            }
+            else if (cat.type === 'slider') {
+                const rangeContainer = document.createElement('div');
+                rangeContainer.className = 'range-container';
+                const header = document.createElement('div');
+                header.className = 'range-header';
+                const valDisplay = document.createElement('div');
+                valDisplay.className = 'range-value';
+                valDisplay.id = 'dofValue';
+                valDisplay.innerText = cat.options[state.dof].label;
+                header.appendChild(valDisplay);
+                const range = document.createElement('input');
+                range.type = 'range';
+                range.min = 0;
+                range.max = cat.options.length - 1;
+                range.value = state.dof;
+                range.id = 'dofSlider';
+                range.oninput = (e) => {
+                    state.dof = parseInt(e.target.value);
+                    const currentOpt = cat.options[state.dof];
+                    document.getElementById('dofValue').innerText = currentOpt.label;
+                    updatePrompt();
+                    setPreview(cat, currentOpt.id); 
+                };
+                rangeContainer.appendChild(header);
+                rangeContainer.appendChild(range);
+                const indicatorDiv = document.createElement('div');
+                indicatorDiv.className = 'slider-labels';
+                indicatorDiv.innerHTML = `<span>Blurry / Bokeh</span> <span>Sharp / Deep</span>`;
+                rangeContainer.appendChild(indicatorDiv);
+                group.appendChild(rangeContainer);
+            }
+            else if (cat.type === 'multi') {
+                const grid = document.createElement('div');
+                grid.className = 'multi-grid';
+                cat.options.forEach(opt => {
+                    const card = document.createElement('div');
+                    card.className = 'grid-card';
+                    card.id = `multi-${key}-${opt.id}`;
+                    card.onclick = () => {
+                        toggleMulti(key, opt.id);
+                        setPreview(cat, opt.id); 
+                    };
+                    card.onmouseenter = () => setPreview(cat, opt.id);
+                    const title = document.createElement('div');
+                    title.className = 'grid-card-title';
+                    title.innerText = opt.label;
+                    card.appendChild(title);
+                    grid.appendChild(card);
+                });
+                group.appendChild(grid);
+            }
+            controlsContainer.appendChild(group);
+        });
+
+        window.addEventListener('click', function(e) {
+            const selects = document.querySelectorAll('.custom-select-wrapper');
+            selects.forEach(select => {
+                if (!select.contains(e.target)) {
+                    select.classList.remove('open');
+                }
+            });
+        });
+    }
+
+    function showInfo(title, text) {
+        infoTitle.innerText = title;
+        infoText.innerText = text;
+    }
+
+    function setRatio(id) {
+        state.ratio = id;
+        updateUI();
+    }
+
+    function toggleSelect(key, e) {
+        const wrapper = document.getElementById(`select-${key}`);
+        const isOpen = wrapper.classList.contains('open');
+        document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
+        if (!isOpen) wrapper.classList.add('open');
+    }
+
+    function selectOption(key, id) {
+        state[key] = id;
+        updateUI();
+        document.getElementById(`select-${key}`).classList.remove('open');
+    }
+
+    function toggleMulti(key, id) {
+        const arr = state[key];
+        if (arr.includes(id)) {
+            state[key] = arr.filter(i => i !== id);
+        } else {
+            state[key].push(id);
+        }
+        updateUI();
+    }
+
+    function updateUI() {
+        document.querySelectorAll('.ratio-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.id === state.ratio);
+        });
+
+        const ratioObj = categories.ratio.options.find(o => o.id === state.ratio);
+        
+        // Get the actual container dimensions
+        const rect = previewContainer.getBoundingClientRect();
+        const containerW = rect.width - 40; // Minus padding
+        const containerH = rect.height - 40; // Minus padding
+        
+        const targetRatio = ratioObj.w / ratioObj.h;
+        
+        // Calculate dimensions to fit within container while maintaining aspect ratio
+        let w, h;
+        
+        // Check if container is wider than target ratio
+        if (containerW / containerH > targetRatio) {
+            // Container is wider, fit to height
+            h = containerH;
+            w = h * targetRatio;
+        } else {
+            // Container is taller (or same), fit to width
+            w = containerW;
+            h = w / targetRatio;
+        }
+        
+        // Use 90% of calculated to ensure some breathing room if needed, or strictly fitted
+        // Let's stick to 100% of calculation which is 100% of container inner area
+        
+        visualBox.style.width = `${w}px`;
+        visualBox.style.height = `${h}px`;
+
+        ['camera', 'framing', 'angle', 'focal', 'lighting', 'palette', 'artist'].forEach(cat => {
+            const opt = categories[cat].options.find(o => o.id === state[cat]);
+            document.getElementById(`txt-${cat}`).innerText = opt.label;
+            document.querySelectorAll(`#select-${cat} .custom-option`).forEach(el => {
+                el.classList.toggle('selected', el.dataset.value === state[cat]);
+            });
+        });
+
+        ['texture', 'style'].forEach(cat => {
+            categories[cat].options.forEach(opt => {
+                const el = document.getElementById(`multi-${cat}-${opt.id}`);
+                if (el) el.classList.toggle('active', state[cat].includes(opt.id));
+            });
+        });
+
+        document.getElementById('dofSlider').value = state.dof;
+        const dofOpt = categories.dof.options[state.dof];
+        document.getElementById('dofValue').innerText = dofOpt.label;
+
+        updatePrompt();
+    }
+
+    function updatePrompt() {
+        const subject = subjectInput.value || "A Subject";
+        const neg = negativeInput.value;
+        const cam = categories.camera.options.find(o => o.id === state.camera);
+        const frame = categories.framing.options.find(o => o.id === state.framing);
+        const ang = categories.angle.options.find(o => o.id === state.angle);
+        const focal = categories.focal.options.find(o => o.id === state.focal);
+        const dofVal = categories.dof.options[state.dof];
+        const light = categories.lighting.options.find(o => o.id === state.lighting);
+        const pal = categories.palette.options.find(o => o.id === state.palette);
+        const art = categories.artist.options.find(o => o.id === state.artist);
+        const rat = categories.ratio.options.find(o => o.id === state.ratio);
+
+        const textures = state.texture.map(id => categories.texture.options.find(o => o.id === id).value).join(", ");
+        const styles = state.style.map(id => categories.style.options.find(o => o.id === id).value).join(", ");
+        
+        let finalPrompt = "";
+
+        if (state.mode === 'flux' || state.mode === 'nanobanana') {
+            const prefix = state.mode === 'nanobanana' ? "High-end cinematic photography: " : "";
+            finalPrompt = `${prefix}A ${frame.value} of ${subject}, shot at ${ang.value} on ${cam.label} with a ${focal.value} at aperture ${dofVal.val}. The lighting is ${light.value} with a ${pal.label} color grade. In the style of ${art.label}. Visual style is ${styles}. ${textures}. ${rat.value}`;
+        } else if (state.mode === 'midjourney') {
+            let parts = [styles, `${frame.value} of ${subject}`, cam.value, focal.value, `f/${dofVal.val}`, ang.value, light.value, pal.value, art.value, textures];
+            finalPrompt = parts.filter(p => p && p.trim() !== "").join(", ") + " " + rat.value;
+        } else {
+            let parts = [styles, `${frame.value} of ${subject}`, cam.value, focal.value, `aperture ${dofVal.val}`, ang.value, light.value, pal.value, art.value, textures];
+            finalPrompt = parts.filter(p => p && p.trim() !== "").join(", ");
+        }
+
+        promptOutput.value = finalPrompt;
+
+        const jsonObj = {
+            subject: subject,
+            negative_prompt: neg,
+            formatting_mode: state.mode,
+            parameters: {
+                aspect_ratio: state.ratio,
+                camera: cam.label,
+                lens: focal.label,
+                aperture: dofVal.val,
+                lighting: light.label,
+                style: styles,
+                textures: textures
+            },
+            raw_prompt: finalPrompt
+        };
+        jsonOutput.value = JSON.stringify(jsonObj, null, 2);
+    }
+
+    function copyToClipboard(elementId) {
+        const copyText = document.getElementById(elementId);
+        copyText.select();
+        document.execCommand('copy');
+        const btn = copyText.previousElementSibling.querySelector('button');
+        const originalText = btn.innerText;
+        btn.innerText = "Copied!";
+        btn.style.background = "#F5C518";
+        btn.style.color = "#111";
+        setTimeout(() => {
+            btn.innerText = originalText;
+            btn.style.background = "";
+            btn.style.color = "";
+        }, 1500);
+    }
+
+    function randomize() {
+        ['camera', 'framing', 'angle', 'focal', 'lighting', 'palette', 'artist'].forEach(cat => {
+            const opts = categories[cat].options;
+            state[cat] = opts[Math.floor(Math.random() * opts.length)].id;
+        });
+        const rats = categories.ratio.options;
+        state.ratio = rats[Math.floor(Math.random() * rats.length)].id;
+        state.dof = Math.floor(Math.random() * categories.dof.options.length);
+        ['texture', 'style'].forEach(cat => {
+            state[cat] = [];
+            categories[cat].options.forEach(opt => { if(Math.random() > 0.8) state[cat].push(opt.id); });
+            if(cat === 'style' && state.style.length === 0) state.style.push(categories.style.options[0].id);
+        });
+        const subjects = ["A cyberpunk detective", "An ancient forest temple", "A race car on a neon track", "A cyborg geisha", "A lonely lighthouse", "A samurai in a field of flowers", "A spaceship landing on Mars"];
+        subjectInput.value = subjects[Math.floor(Math.random() * subjects.length)];
+        updateUI();
+    }
+
+    function saveTemplate() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "cinematic_prompt_preset.json");
+        document.body.appendChild(downloadAnchorNode); 
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    function loadTemplate() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = e => {
+           const file = e.target.files[0];
+           if (!file) return;
+           const reader = new FileReader();
+           reader.onload = event => {
+               try {
+                   const loadedState = JSON.parse(event.target.result);
+                   if(loadedState.camera && loadedState.ratio) {
+                       state = loadedState;
+                       if(loadedState.subject) subjectInput.value = loadedState.subject; 
+                       if(loadedState.negative) negativeInput.value = loadedState.negative;
+                       if(loadedState.mode) setMode(loadedState.mode);
+                       updateUI();
+                   }
+               } catch(err) { console.error("Error reading JSON file."); }
+           }
+           reader.readAsText(file);
+        }
+        input.click();
+    }
+
+    function resetAll() {
+        state = {
+            mode: "midjourney",
+            ratio: "16-9",
+            camera: "arri",
+            framing: "wide",
+            angle: "eye",
+            focal: "50mm",
+            dof: 2,
+            lighting: "volumetric",
+            palette: "tealorange",
+            texture: [],
+            style: ["photo", "cine"],
+            artist: "wes",
+            negative: ""
+        };
+        subjectInput.value = "";
+        negativeInput.value = "";
+        setMode("midjourney");
+        updateUI();
+    }
+
+    init();
+</script>
+</body>
+</html>
