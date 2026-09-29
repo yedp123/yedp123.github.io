@@ -122,7 +122,7 @@
         /* --- Mode Selector --- */
         .mode-selector {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 5px;
             background: #111;
             padding: 4px;
@@ -328,7 +328,7 @@
     <div class="brand">
         <span>CINEMA</span> PROMPT BUILDER
     </div>
-    <div class="version">v3.13 (Overflow Fix)</div>
+    <div class="version">v3.14 (Krea 2)</div>
 </header>
 
 <div class="app-container">
@@ -340,11 +340,17 @@
             <button class="mode-btn" onclick="setMode('stablediffusion')">Stable Diff.</button>
             <button class="mode-btn" onclick="setMode('flux')">Flux</button>
             <button class="mode-btn" onclick="setMode('nanobanana')">NanoBanana Pro</button>
+            <button class="mode-btn" onclick="setMode('krea2')">Krea 2</button>
         </div>
 
         <div class="control-group">
             <div class="label">Primary Subject</div>
             <input type="text" id="subjectInput" placeholder="A lone cyborg in a rainy alleyway..." value="A lone astronaut exploring a cave">
+        </div>
+
+        <div class="control-group" id="settingGroup" style="display:none">
+            <div class="label">Setting / Environment</div>
+            <input type="text" id="settingInput" placeholder="inside a flooded reactor core, steam rising from cracked pipes">
         </div>
 
         <div class="control-group">
@@ -353,6 +359,18 @@
         </div>
 
         <div id="controlsContainer"></div>
+
+        <div id="kreaSection" class="control-group" style="display:none">
+            <div class="label">Krea 2 Moodboard / Style Stack
+                <span id="kreaStackCount" class="range-value" style="font-size:0.75rem;">0/3</span>
+            </div>
+            <div class="multi-grid" id="kreaMoodGrid"></div>
+            <div class="slider-labels" style="margin:8px 0 4px;"><span>Style strength</span></div>
+            <div class="range-container">
+                <input type="range" id="kreaStrength" min="25" max="90" step="5" value="50">
+                <div class="slider-labels"><span>0.25 light flavor</span><span id="kreaStrengthVal">0.50 balanced</span><span>0.90 dominant</span></div>
+            </div>
+        </div>
     </aside>
 
     <main class="preview-panel">
@@ -388,6 +406,9 @@
         </div>
 
         <div class="action-bar">
+            <select id="recipeSelect" style="background:#1a1a1a;color:#ccc;border:1px solid var(--border);border-radius:4px;padding:6px 8px;font-size:0.8rem;max-width:230px;" title="Guide recipes (Krea 2 prompting guide)">
+                <option value="">Krea 2 recipes...</option>
+            </select>
             <button class="btn btn-primary" onclick="randomize()">Inspiration</button>
             <button class="btn btn-action" onclick="saveTemplate()">Save File</button>
             <button class="btn btn-action" onclick="loadTemplate()">Load File</button>
@@ -585,9 +606,39 @@
         }
     };
 
+    // Krea 2 moodboard presets (style stack). Presets add keywords to the prompt
+    // and avoid-terms to the negative prompt, per the Krea 2 prompting guide:
+    // https://github.com/Andro-Meta/krea-2-local-studio/blob/main/docs/krea2-prompting-guide.md
+    const KREA2_MOODS = [
+        { id: "folkhorror", label: "Folk Horror", keywords: "eerie folk horror mood, unsettling stillness", avoid: "cartoon, anime, CGI, plastic render, illustration, digital painting, overly clean digital art" },
+        { id: "cosmic", label: "Cosmic Horror", keywords: "cosmic horror mood, vast indifferent dread", avoid: "cartoon, anime, CGI, illustration, digital painting" },
+        { id: "liminal", label: "Liminal Dread", keywords: "liminal dread, uncanny quietness of empty spaces", avoid: "cartoon, anime, CGI, illustration, digital painting" },
+        { id: "gothic", label: "Gothic Horror", keywords: "gothic horror mood, oppressive dark atmosphere", avoid: "cartoon, anime, CGI, illustration, digital painting" },
+        { id: "slasher", label: "Slasher Night", keywords: "slasher-night tension, threat just out of sight", avoid: "cartoon, anime, CGI, illustration" },
+        { id: "noir", label: "Film Noir", keywords: "cinematic film noir mood, cynical urban atmosphere", avoid: "cartoon, anime, CGI, digital painting" },
+        { id: "vintage35", label: "Vintage 35mm", keywords: "grainy vintage 35mm film look, faded analog colors", avoid: "clean digital, overly sharp render" },
+        { id: "editorial", label: "Editorial Portrait", keywords: "editorial portrait mood, magazine-quality composition", avoid: "cartoon, anime, CGI" },
+        { id: "brutalist", label: "Brutalist Mono", keywords: "brutalist concrete architecture, stark monochrome tones", avoid: "cartoon, anime, CGI, digital painting" },
+        { id: "cinematic", label: "Cinematic Film", keywords: "cinematic film mood, dramatic widescreen atmosphere", avoid: "cartoon, anime, CGI" },
+        { id: "product", label: "Product Studio", keywords: "luxury editorial product studio look, crisp material texture", avoid: "cartoon, anime, illustration" },
+        { id: "minimal", label: "Minimalist", keywords: "minimalist style, clean uncluttered composition", avoid: "clutter, busy background" }
+    ];
+
+    // Ready-made recipes from the Krea 2 prompting guide
+    const KREA2_RECIPIES = [
+        { name: "Grainy Folk Horror Portrait", prompt: "A solitary farmer standing in a dead cornfield at dusk, centered medium portrait, overcast sky, distant farmhouse barely visible through fog, photorealistic folk horror photography, 35mm film grain, muted earth tones, practical natural light, unsettling stillness", stack: ["folkhorror", "vintage35", "editorial"] },
+        { name: "Cosmic Horror Realism", prompt: "A research team finds an impossible black monolith half-buried in Arctic ice, wide documentary photograph, headlamps and snow glare, tiny human figures for scale, photorealistic cosmic horror, visible film grain, cold desaturated palette, unsettling naturalism", stack: ["cosmic", "cinematic"] },
+        { name: "Liminal Flash Photo", prompt: "An empty hotel corridor at 3 a.m., direct on-camera flash, beige walls, patterned carpet, one door slightly open at the far end, photorealistic liminal horror photography, harsh shadows, low-resolution analog grain, uncanny silence", stack: ["liminal", "vintage35"] },
+        { name: "Product Shot", prompt: "A matte black perfume bottle on wet obsidian stone, close studio product photograph, softbox reflection, subtle rim light, shallow depth of field, luxury editorial composition, crisp material texture", stack: ["product", "minimal"] },
+        { name: "Character Concept (Grounded)", prompt: "A weathered detective in a narrow alley after rain, three-quarter portrait, sodium streetlight behind him, damp wool coat, realistic face texture, cinematic noir photograph, 50mm lens, muted color grade, grounded urban detail", stack: ["noir", "cinematic"] }
+    ];
+
     let state = {
         mode: "midjourney",
         ratio: "16-9",
+        krea2Setting: "",
+        krea2Moods: [],
+        krea2Strength: 50,
         camera: "arri",
         framing: "wide",
         angle: "eye",
@@ -611,6 +662,13 @@
     const jsonOutput = document.getElementById('jsonOutput');
     const subjectInput = document.getElementById('subjectInput');
     const negativeInput = document.getElementById('negativeInput');
+    const settingInput = document.getElementById('settingInput');
+    const settingGroup = document.getElementById('settingGroup');
+    const kreaSection = document.getElementById('kreaSection');
+    const kreaMoodGrid = document.getElementById('kreaMoodGrid');
+    const kreaStackCount = document.getElementById('kreaStackCount');
+    const kreaStrengthSlider = document.getElementById('kreaStrength');
+    const kreaStrengthVal = document.getElementById('kreaStrengthVal');
     const previewContainer = document.getElementById('previewContainer'); // Added ID for ref
 
     function init() {
@@ -619,6 +677,17 @@
         setPreview(categories.camera, "arri");
         subjectInput.addEventListener('input', updatePrompt);
         negativeInput.addEventListener('input', () => { state.negative = negativeInput.value; updatePrompt(); });
+        settingInput.addEventListener('input', () => { state.krea2Setting = settingInput.value; updatePrompt(); });
+        kreaStrengthSlider.addEventListener('input', (e) => { state.krea2Strength = parseInt(e.target.value); updatePrompt(); });
+        initKrea2Moods();
+        const recipeSelect = document.getElementById('recipeSelect');
+        KREA2_RECIPIES.forEach((r, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.innerText = r.name;
+            recipeSelect.appendChild(opt);
+        });
+        recipeSelect.addEventListener('change', e => { if (e.target.value !== "") applyKrea2Recipe(parseInt(e.target.value)); e.target.value = ""; });
         
         // Add resize listener to handle container changes
         window.addEventListener('resize', updateUI);
@@ -634,6 +703,11 @@
         btns[1].classList.toggle('active', mode === 'stablediffusion');
         btns[2].classList.toggle('active', mode === 'flux');
         btns[3].classList.toggle('active', mode === 'nanobanana');
+        btns[4].classList.toggle('active', mode === 'krea2');
+        const isKrea2 = mode === 'krea2';
+        settingGroup.style.display = isKrea2 ? 'flex' : 'none';
+        kreaSection.style.display = isKrea2 ? 'block' : 'none';
+        if (isKrea2) renderKrea2UI();
         updatePrompt();
     }
 
@@ -782,6 +856,59 @@
         });
     }
 
+    function initKrea2Moods() {
+        KREA2_MOODS.forEach(opt => {
+            const card = document.createElement('div');
+            card.className = 'grid-card';
+            card.id = `krea2mood-${opt.id}`;
+            card.title = opt.keywords;
+            card.onclick = () => { toggleKrea2Mood(opt.id); renderKrea2UI(); };
+            card.onmouseenter = () => showInfo(opt.label + " (Mood Preset)", opt.keywords + ". Use 2-3 presets max; more blurs the direction.");
+            const title = document.createElement('div');
+            title.className = 'grid-card-title';
+            title.innerText = opt.label;
+            card.appendChild(title);
+            kreaMoodGrid.appendChild(card);
+        });
+    }
+
+    function toggleKrea2Mood(id) {
+        if (state.krea2Moods.includes(id)) {
+            state.krea2Moods = state.krea2Moods.filter(i => i !== id);
+        } else {
+            if (state.krea2Moods.length >= 3) {
+                showInfo("Style stack limit", "Use 2 or 3 mood presets at most. More than that can blur the visual direction.");
+                return;
+            }
+            state.krea2Moods.push(id);
+        }
+        updatePrompt();
+    }
+
+    function renderKrea2UI() {
+        KREA2_MOODS.forEach(opt => {
+            const el = document.getElementById(`krea2mood-${opt.id}`);
+            if (el) el.classList.toggle('active', state.krea2Moods.includes(opt.id));
+        });
+        kreaStackCount.innerText = state.krea2Moods.length + "/3";
+        kreaStrengthSlider.value = state.krea2Strength;
+        const s = (state.krea2Strength / 100).toFixed(2);
+        kreaStrengthVal.innerText = s + " " + (state.krea2Strength < 40 ? "light flavor" : state.krea2Strength <= 60 ? "balanced" : state.krea2Strength <= 80 ? "strong direction" : "dominant style");
+    }
+
+    function applyKrea2Recipe(i) {
+        const recipe = KREA2_RECIPIES[i];
+        subjectInput.value = recipe.prompt;
+        state.krea2Moods = recipe.stack.slice();
+        renderKrea2UI();
+        showInfo("Recipe: " + recipe.name, "Guide recipe loaded into the subject field. Adjust the subject, then rebuild.");
+        updatePrompt();
+    }
+
+    function krea2StrengthLabel(v) {
+        return (v / 100).toFixed(2);
+    }
+
     function showInfo(title, text) {
         infoTitle.innerText = title;
         infoText.innerText = text;
@@ -868,7 +995,76 @@
         const dofOpt = categories.dof.options[state.dof];
         document.getElementById('dofValue').innerText = dofOpt.label;
 
+        if (state.mode === 'krea2') renderKrea2UI();
+
         updatePrompt();
+    }
+
+    // Krea 2 prompt builder, following the Krea 2 Studio prompting guide:
+    // - Best default formula order: Subject + setting + composition + lighting + mood + medium/style + texture/camera detail
+    // - Clear clauses over "comma soup"
+    // - Good prompt length: exploration 5-20 words, controlled image 30-80, complex scene 80-140
+    // - Mood presets add keywords to the prompt and avoid-terms to the negative prompt
+    // - Recommended Turbo settings: steps 8, CFG 0.0, Mu 1.15, quantization fp8
+    function buildKrea2Prompt() {
+        const subject = (subjectInput.value || "").trim() || "a subject";
+        const setting = (state.krea2Setting || "").trim();
+        const frame = categories.framing.options.find(o => o.id === state.framing);
+        const ang = categories.angle.options.find(o => o.id === state.angle);
+        const light = categories.lighting.options.find(o => o.id === state.lighting);
+        const cam = categories.camera.options.find(o => o.id === state.camera);
+        const focal = categories.focal.options.find(o => o.id === state.focal);
+        const dofVal = categories.dof.options[state.dof];
+
+        // Composition clause
+        let composition = `framed as ${frame.value}`;
+        if (ang && ang.value !== "eye level angle") composition += `, ${ang.value}`;
+
+        // Aspect ratio as a natural-language composition clause
+        const ratioClauses = {
+            "16-9": "in a widescreen 16:9 cinematic frame",
+            "9-16": "in a vertical 9:16 frame",
+            "1-1": "in a square 1:1 frame",
+            "4-3": "in a 4:3 frame",
+            "235-1": "in an ultra-wide 2.35:1 anamorphic frame",
+            "143-1": "in a tall 1.43:1 IMAX frame"
+        };
+        const ratioClause = ratioClauses[state.ratio];
+        if (ratioClause) composition += `, ${ratioClause}`;
+
+        // Lighting clause
+        const lightingClause = `lit with ${light.value}`;
+
+        // Mood clause from the style stack (2-3 presets max)
+        const moods = state.krea2Moods.map(id => KREA2_MOODS.find(m => m.id === id)).filter(Boolean);
+        const moodClause = moods.length ? moods.map(m => m.keywords).join("; ") : "";
+
+        // Medium / style clause
+        const medium = state.style.map(id => categories.style.options.find(o => o.id === id).value).join(", ");
+
+        // Texture + camera detail clause
+        const texParts = state.texture.map(id => categories.texture.options.find(o => o.id === id).value);
+        const camParts = [cam.value, `${focal.value} at ${dofVal.val}`];
+        if (state.dof <= 2) camParts.push("shallow depth of field");
+        let detailClause = texParts.concat(camParts).join(", ");
+        const isHorrorStack = moods.some(m => ["folkhorror", "cosmic", "liminal", "gothic", "slasher"].includes(m.id));
+        if (isHorrorStack && !detailClause.includes("film grain")) {
+            detailClause = detailClause ? detailClause + ", visible film grain" : "visible film grain";
+        }
+
+        const parts = [subject, setting, composition, lightingClause, moodClause, medium, detailClause].map(p => p.trim()).filter(p => p);
+        let prompt = parts.join(". ");
+        if (prompt && !/[.!?]$/.test(prompt)) prompt += ".";
+
+        const wordCount = prompt ? prompt.split(/\s+/).length : 0;
+
+        // Negative prompt: user text + mood avoid-terms
+        const avoids = new Set();
+        moods.forEach(m => m.avoid.split(",").forEach(a => avoids.add(a.trim())));
+        (negativeInput.value || "").split(",").forEach(a => avoids.add(a.trim()));
+        const negative = [...avoids].filter(a => a).join(", ");
+
+        return { prompt, negative, wordCount, moods };
     }
 
     function updatePrompt() {
@@ -888,8 +1084,12 @@
         const styles = state.style.map(id => categories.style.options.find(o => o.id === id).value).join(", ");
         
         let finalPrompt = "";
+        let krea2Built = null;
 
-        if (state.mode === 'flux' || state.mode === 'nanobanana') {
+        if (state.mode === 'krea2') {
+            krea2Built = buildKrea2Prompt();
+            finalPrompt = krea2Built.prompt;
+        } else if (state.mode === 'flux' || state.mode === 'nanobanana') {
             const prefix = state.mode === 'nanobanana' ? "High-end cinematic photography: " : "";
             finalPrompt = `${prefix}A ${frame.value} of ${subject}, shot at ${ang.value} on ${cam.label} with a ${focal.value} at aperture ${dofVal.val}. The lighting is ${light.value} with a ${pal.label} color grade. In the style of ${art.label}. Visual style is ${styles}. ${textures}. ${rat.value}`;
         } else if (state.mode === 'midjourney') {
@@ -906,6 +1106,15 @@
             subject: subject,
             negative_prompt: neg,
             formatting_mode: state.mode,
+            krea2: state.mode === 'krea2' ? {
+                generation_settings: { steps: 8, cfg: 0.0, mu: 1.15, quantization: "fp8" },
+                moodboard: {
+                    presets: (krea2Built ? krea2Built.moods : []).map(m => m.label),
+                    strength: krea2StrengthLabel(state.krea2Strength)
+                },
+                prompt_length_words: krea2Built ? krea2Built.wordCount : 0,
+                negative_prompt: krea2Built ? krea2Built.negative : ""
+            } : undefined,
             parameters: {
                 aspect_ratio: state.ratio,
                 camera: cam.label,
@@ -951,6 +1160,15 @@
         });
         const subjects = ["A cyberpunk detective", "An ancient forest temple", "A race car on a neon track", "A cyborg geisha", "A lonely lighthouse", "A samurai in a field of flowers", "A spaceship landing on Mars"];
         subjectInput.value = subjects[Math.floor(Math.random() * subjects.length)];
+        if (state.mode === 'krea2') {
+            state.krea2Moods = [];
+            const pool = KREA2_MOODS.map(m => m.id);
+            const n = 1 + Math.floor(Math.random() * 3);
+            while (state.krea2Moods.length < n && pool.length) {
+                state.krea2Moods.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+            }
+            state.krea2Strength = [25, 50, 50, 70][Math.floor(Math.random() * 4)];
+        }
         updateUI();
     }
 
@@ -977,6 +1195,10 @@
                    const loadedState = JSON.parse(event.target.result);
                    if(loadedState.camera && loadedState.ratio) {
                        state = loadedState;
+                       if (typeof state.krea2Setting !== 'string') state.krea2Setting = "";
+                       if (!Array.isArray(state.krea2Moods)) state.krea2Moods = [];
+                       if (typeof state.krea2Strength !== 'number') state.krea2Strength = 50;
+                       if (state.krea2Setting) settingInput.value = state.krea2Setting;
                        if(loadedState.subject) subjectInput.value = loadedState.subject; 
                        if(loadedState.negative) negativeInput.value = loadedState.negative;
                        if(loadedState.mode) setMode(loadedState.mode);
@@ -1003,10 +1225,14 @@
             texture: [],
             style: ["photo", "cine"],
             artist: "wes",
-            negative: ""
+            negative: "",
+            krea2Setting: "",
+            krea2Moods: [],
+            krea2Strength: 50
         };
         subjectInput.value = "";
         negativeInput.value = "";
+        settingInput.value = "";
         setMode("midjourney");
         updateUI();
     }
